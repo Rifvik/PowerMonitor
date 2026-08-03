@@ -430,11 +430,29 @@ class MainWindow(QMainWindow):
         rate_layout.addWidget(lbl_rate)
         rate_layout.addWidget(self.spin_rate)
         
+        base_layout = QHBoxLayout()
+        lbl_base = QLabel("System Base Power (W):")
+        lbl_base.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        lbl_base.setStyleSheet(f"color: {COLOR_ACTIVE};")
+        lbl_base.setToolTip("Adjust this to match your motherboard, RAM, and display's idle power draw (e.g., to match HWiNFO64 Total System Power).")
+        
+        self.spin_base = QDoubleSpinBox()
+        self.spin_base.setRange(0.0, 500.0)
+        self.spin_base.setDecimals(1)
+        self.spin_base.setValue(20.0)
+        self.spin_base.setSingleStep(1.0)
+        self.spin_base.setStyleSheet(f"color: {COLOR_ACTIVE}; background-color: {COLOR_BG}; border: 1px solid {COLOR_ACTIVE}; border-radius: 4px; padding: 2px;")
+        
+        base_layout.addWidget(lbl_base)
+        base_layout.addWidget(self.spin_base)
+
+        
         self.lbl_current_cost = self.create_metric_label("Current Cost:")
         self.lbl_total_energy = self.create_metric_label("Total Energy:")
         self.lbl_total_cost = self.create_metric_label("Total Cost:")
         
         cost_layout.addLayout(rate_layout)
+        cost_layout.addLayout(base_layout)
         cost_layout.addWidget(self.lbl_current_cost)
         cost_layout.addWidget(self.lbl_total_energy)
         cost_layout.addWidget(self.lbl_total_cost)
@@ -512,7 +530,11 @@ class MainWindow(QMainWindow):
                 self.activateWindow()
 
     def update_ui(self, data):
-        total_p = data["total_power"]
+        if data['bat_status'] != "Discharging" or data['bat_charge_rate'] <= 0:
+            total_p = data["cpu_power"] + data["gpu_power"] + self.spin_base.value()
+        else:
+            total_p = data["total_power"]
+
         
         self.lbl_total_power.setText(f"{total_p:.1f} W")
         self.sparkline.add_value(total_p)
