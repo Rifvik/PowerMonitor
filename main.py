@@ -7,6 +7,16 @@ import psutil
 import pythoncom
 import wmi
 
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+if not is_admin():
+    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+    sys.exit()
+
 try:
     import pynvml
     HAS_NVML = True
@@ -54,6 +64,18 @@ class TelemetryWorker(QThread):
     def __init__(self):
         super().__init__()
         self.running = True
+        self.has_lhm = False
+        try:
+            import clr
+            clr.AddReference(resource_path("LibreHardwareMonitorLib.dll"))
+            from LibreHardwareMonitor.Hardware import Computer
+            self.computer = Computer()
+            self.computer.IsCpuEnabled = True
+            self.computer.IsBatteryEnabled = True
+            self.computer.Open()
+            self.has_lhm = True
+        except Exception as e:
+            print("Failed to init LHM:", e)
 
     def run(self):
         # Initialize COM for WMI in this thread
@@ -167,6 +189,40 @@ class TelemetryWorker(QThread):
             except Exception as e:
                 print(f"WMI Battery error: {e}")
             
+            # LHM Overrides
+            if self.has_lhm:
+                try:
+                    for hw in self.computer.Hardware:
+                        hw.Update()
+                        hw_type = hw.HardwareType.ToString()
+                        if hw_type == "Cpu":
+                            for sensor in hw.Sensors:
+                                s_type = sensor.SensorType.ToString()
+                                name = sensor.Name
+                                if sensor.Value is not None:
+                                    if s_type == "Temperature" and ("Package" in name or "Core Average" in name or "Core Max" in name):
+                                        data["cpu_temp"] = sensor.Value
+                                    elif s_type == "Power" and "Package" in name:
+                                        data["cpu_tdp"] = sensor.Value
+                                        data["cpu_power"] = sensor.Value
+                        elif hw_type == "Battery":
+                            for sensor in hw.Sensors:
+                                s_type = sensor.SensorType.ToString()
+                                name = sensor.Name
+                                if sensor.Value is not None:
+                                    if s_type == "Power" and "Charge" in name:
+                                        data["bat_charge_rate"] = sensor.Value
+                                    elif s_type == "Power" and "Discharge" in name:
+                                        data["bat_charge_rate"] = sensor.Value
+                                    elif s_type == "Energy" and "Designed" in name:
+                                        data["bat_design"] = int(sensor.Value)
+                                    elif s_type == "Energy" and "Full" in name:
+                                        data["bat_capacity"] = int(sensor.Value)
+                                    elif s_type == "Level" and "Charge" in name:
+                                        data["bat_percent"] = sensor.Value
+                except Exception as e:
+                    print("LHM update error:", e)
+
             # Total Power Estimation
             # If we have discharge rate in Watts (some systems report mW, some W), we can use it.
             # But let's sum up our knowns.
@@ -389,7 +445,10 @@ class MainWindow(QMainWindow):
         self.lbl_total_power.setText(f"{total_p:.1f} W")
         self.sparkline.add_value(total_p)
         
-        self.lbl_cpu.setText(f"CPU ({data['cpu_name']}):\nPower: {data['cpu_power']:.1f} W\nTemp: N/A\nTDP: N/A")
+        cpu_temp_str = f"{data['cpu_temp']:.0f} °C" if data['cpu_temp'] > 0 else "N/A"
+        cpu_tdp_str = f"{data['cpu_tdp']:.1f} W" if data['cpu_tdp'] > 0 else "N/A"
+        self.lbl_cpu.setText(f"CPU ({data['cpu_name']}):\nPower: {data['cpu_power']:.1f} W\nTemp: {cpu_temp_str}\nTDP: {cpu_tdp_str}")
+        
         if HAS_NVML and data['gpu_power'] > 0:
             gpu_tdp_str = f"{data['gpu_tdp']:.1f} W" if data['gpu_tdp'] > 0 else "N/A"
             self.lbl_gpu.setText(f"GPU ({data['gpu_name']}):\nPower: {data['gpu_power']:.1f} W\nTemp: {data['gpu_temp']} °C\nTDP: {gpu_tdp_str}")
