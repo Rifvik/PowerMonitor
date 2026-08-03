@@ -24,7 +24,7 @@ except ImportError:
     HAS_NVML = False
 
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                               QHBoxLayout, QLabel, QSystemTrayIcon, QMenu, QStyle, QFrame, QSizePolicy)
+                               QHBoxLayout, QLabel, QSystemTrayIcon, QMenu, QStyle, QFrame, QSizePolicy, QDoubleSpinBox)
 from PySide6.QtGui import QIcon, QPainter, QColor, QFont, QPixmap, QAction, QPainterPath, QPen
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QPointF
 
@@ -320,6 +320,8 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(f"QMainWindow {{ background-color: {COLOR_BG}; }}")
         
         self.tray_icon = None
+        self.accumulated_kwh = 0.0
+        self.last_update_time = time.time()
         self.setup_ui()
         self.setup_tray()
         
@@ -367,9 +369,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(metrics_frame)
         
         # Battery Group
-        bat_frame = QFrame()
-        bat_frame.setStyleSheet(f"QFrame {{ background-color: {COLOR_SECONDARY}; border-radius: 8px; }}")
-        bat_layout = QVBoxLayout(bat_frame)
+        self.bat_frame = QFrame()
+        self.bat_frame.setStyleSheet(f"QFrame {{ background-color: {COLOR_SECONDARY}; border-radius: 8px; }}")
+        bat_layout = QVBoxLayout(self.bat_frame)
         
         self.lbl_bat_status = self.create_metric_label("Battery Status:")
         self.lbl_bat_percent = self.create_metric_label("Remaining:")
@@ -381,7 +383,39 @@ class MainWindow(QMainWindow):
         bat_layout.addWidget(self.lbl_bat_health)
         bat_layout.addWidget(self.lbl_bat_rate)
         
-        layout.addWidget(bat_frame)
+        layout.addWidget(self.bat_frame)
+        
+        # Cost Calculator Group
+        cost_frame = QFrame()
+        cost_frame.setStyleSheet(f"QFrame {{ background-color: {COLOR_SECONDARY}; border-radius: 8px; }}")
+        cost_layout = QVBoxLayout(cost_frame)
+        
+        rate_layout = QHBoxLayout()
+        lbl_rate = QLabel("Electricity Rate ($/kWh):")
+        lbl_rate.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        lbl_rate.setStyleSheet(f"color: {COLOR_ACTIVE};")
+        
+        self.spin_rate = QDoubleSpinBox()
+        self.spin_rate.setRange(0.0, 1000.0)
+        self.spin_rate.setDecimals(4)
+        self.spin_rate.setValue(0.15)
+        self.spin_rate.setSingleStep(0.01)
+        self.spin_rate.setStyleSheet(f"color: {COLOR_ACTIVE}; background-color: {COLOR_BG}; border: 1px solid {COLOR_ACTIVE}; border-radius: 4px; padding: 2px;")
+        
+        rate_layout.addWidget(lbl_rate)
+        rate_layout.addWidget(self.spin_rate)
+        
+        self.lbl_current_cost = self.create_metric_label("Current Cost:")
+        self.lbl_total_energy = self.create_metric_label("Total Energy:")
+        self.lbl_total_cost = self.create_metric_label("Total Cost:")
+        
+        cost_layout.addLayout(rate_layout)
+        cost_layout.addWidget(self.lbl_current_cost)
+        cost_layout.addWidget(self.lbl_total_energy)
+        cost_layout.addWidget(self.lbl_total_cost)
+        
+        layout.addWidget(cost_frame)
+        
         layout.addStretch()
 
     def create_metric_label(self, text):
@@ -468,14 +502,35 @@ class MainWindow(QMainWindow):
         else:
             self.lbl_gpu.setText(f"GPU ({data['gpu_name']}):\nN/A")
             
-        self.lbl_bat_status.setText(f"Battery Status: {data['bat_status']}")
-        self.lbl_bat_percent.setText(f"Remaining: {data['bat_percent']:.0f}% ({data['bat_time_left']})")
-        if data['bat_health'] > 0:
-            self.lbl_bat_health.setText(f"Health: {data['bat_health']:.1f}% ({data['bat_capacity']} / {data['bat_design']} mWh)")
+        if data['bat_percent'] == 255:
+            self.bat_frame.hide()
         else:
-            self.lbl_bat_health.setText("Health: N/A")
+            self.bat_frame.show()
+            self.lbl_bat_status.setText(f"Battery Status: {data['bat_status']}")
+            self.lbl_bat_percent.setText(f"Remaining: {data['bat_percent']:.0f}% ({data['bat_time_left']})")
+            if data['bat_health'] > 0:
+                self.lbl_bat_health.setText(f"Health: {data['bat_health']:.1f}% ({data['bat_capacity']} / {data['bat_design']} mWh)")
+            else:
+                self.lbl_bat_health.setText("Health: N/A")
+                
+            self.lbl_bat_rate.setText(f"Rate: {data['bat_charge_rate']:.1f} W")
             
-        self.lbl_bat_rate.setText(f"Rate: {data['bat_charge_rate']:.1f} W")
+        # Energy calculations
+        current_time = time.time()
+        dt = current_time - self.last_update_time
+        self.last_update_time = current_time
+        
+        if dt < 5.0: # Ignore large jumps (e.g. sleep/wake)
+            # Power in kW * time in hours = kWh
+            self.accumulated_kwh += (total_p / 1000.0) * (dt / 3600.0)
+            
+        rate = self.spin_rate.value()
+        current_cost_per_hr = (total_p / 1000.0) * rate
+        total_cost = self.accumulated_kwh * rate
+        
+        self.lbl_current_cost.setText(f"Current Cost: ${current_cost_per_hr:.4f}/hr")
+        self.lbl_total_energy.setText(f"Total Energy: {self.accumulated_kwh:.6f} kWh")
+        self.lbl_total_cost.setText(f"Total Cost: ${total_cost:.4f}")
         
         self.update_tray_icon(data)
 
