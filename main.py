@@ -6,6 +6,7 @@ from ctypes import wintypes
 import psutil
 import pythoncom
 import wmi
+import win32pdh
 
 def is_admin():
     try:
@@ -65,6 +66,17 @@ class TelemetryWorker(QThread):
         super().__init__()
         self.running = True
         self.has_lhm = False
+        
+        self.pdh_query = None
+        self.pdh_counter = None
+        try:
+            self.pdh_query = win32pdh.OpenQuery()
+            self.pdh_counter = win32pdh.AddCounter(self.pdh_query, "\\Energy Meter(rapl_package0_pkg)\\Power")
+            win32pdh.CollectQueryData(self.pdh_query) # Initial collection
+        except Exception:
+            self.pdh_query = None
+            self.pdh_counter = None
+
         try:
             # Change working directory so .NET Fusion can find System.Memory.dll etc.
             orig_dir = os.path.abspath(".")
@@ -153,10 +165,22 @@ class TelemetryWorker(QThread):
                 except pynvml.NVMLError:
                     pass
 
-            # 2. CPU Power (Heuristic fallback, as WMI doesn't easily expose CPU power without LibreHardwareMonitor)
-            cpu_percent = psutil.cpu_percent(interval=None)
-            # Rough estimation: 10W idle + 45W max load (Example for a typical laptop CPU)
-            data["cpu_power"] = 10.0 + (cpu_percent / 100.0) * 45.0 
+            # 2. CPU Power (Fallback using Windows PDH Energy Meter or Heuristic)
+            cpu_pdh_success = False
+            if self.pdh_query and self.pdh_counter:
+                try:
+                    win32pdh.CollectQueryData(self.pdh_query)
+                    _type, val = win32pdh.GetFormattedCounterValue(self.pdh_counter, win32pdh.PDH_FMT_DOUBLE)
+                    if val > 0:
+                        data["cpu_power"] = val / 1000.0  # value is in mW
+                        data["cpu_tdp"] = data["cpu_power"]  # For fallback TDP
+                        cpu_pdh_success = True
+                except Exception:
+                    pass
+            
+            if not cpu_pdh_success:
+                cpu_percent = psutil.cpu_percent(interval=None)
+                data["cpu_power"] = 10.0 + (cpu_percent / 100.0) * 45.0 
 
             # 3. Battery via WMI & ctypes
             bat_status_ctypes = get_battery_status_ctypes()
@@ -239,7 +263,8 @@ class TelemetryWorker(QThread):
             # Total Power Estimation
             # If we have discharge rate in Watts (some systems report mW, some W), we can use it.
             # But let's sum up our knowns.
-            data["total_power"] = data["cpu_power"] + data["gpu_power"] + 5.0 # +5W for rest of system
+            # We use 15.0W as a baseline for motherboard/RAM/Display for more accurate estimates
+            data["total_power"] = data["cpu_power"] + data["gpu_power"] + 15.0 
             
             # If on battery and we have a valid discharge rate that looks like system power, use it
             if data["bat_status"] == "Discharging" and data["bat_charge_rate"] > 0:
