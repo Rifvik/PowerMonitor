@@ -87,6 +87,10 @@ class TelemetryWorker(QThread):
                 "gpu_name": self.gpu_name,
                 "cpu_power": 0.0,
                 "gpu_power": 0.0,
+                "cpu_temp": 0.0,
+                "gpu_temp": 0.0,
+                "cpu_tdp": 0.0,
+                "gpu_tdp": 0.0,
                 "total_power": 0.0,
                 "bat_charge_rate": 0.0,
                 "bat_capacity": 0,
@@ -102,6 +106,17 @@ class TelemetryWorker(QThread):
                 try:
                     power_mw = pynvml.nvmlDeviceGetPowerUsage(self.gpu_handle)
                     data["gpu_power"] = power_mw / 1000.0
+                    
+                    data["gpu_temp"] = pynvml.nvmlDeviceGetTemperature(self.gpu_handle, pynvml.NVML_TEMPERATURE_GPU)
+                    try:
+                        tdp_mw = pynvml.nvmlDeviceGetEnforcedPowerLimit(self.gpu_handle)
+                        data["gpu_tdp"] = tdp_mw / 1000.0
+                    except pynvml.NVMLError:
+                        try:
+                            tdp_mw = pynvml.nvmlDeviceGetPowerManagementLimit(self.gpu_handle)
+                            data["gpu_tdp"] = tdp_mw / 1000.0
+                        except pynvml.NVMLError:
+                            pass
                 except pynvml.NVMLError:
                     pass
 
@@ -354,7 +369,7 @@ class MainWindow(QMainWindow):
         
         cpu_str = f"{data.get('cpu_name', 'CPU')}: {data.get('cpu_power', 0.0):.1f}W"
         if HAS_NVML and data.get('gpu_power', 0.0) > 0:
-            gpu_str = f"{data.get('gpu_name', 'GPU')}: {data.get('gpu_power', 0.0):.1f}W"
+            gpu_str = f"{data.get('gpu_name', 'GPU')}: {data.get('gpu_power', 0.0):.1f}W | {data.get('gpu_temp', 0)}°C"
         else:
             gpu_str = f"{data.get('gpu_name', 'GPU')}: N/A"
             
@@ -374,9 +389,10 @@ class MainWindow(QMainWindow):
         self.lbl_total_power.setText(f"{total_p:.1f} W")
         self.sparkline.add_value(total_p)
         
-        self.lbl_cpu.setText(f"CPU ({data['cpu_name']}):\n{data['cpu_power']:.1f} W")
+        self.lbl_cpu.setText(f"CPU ({data['cpu_name']}):\nPower: {data['cpu_power']:.1f} W\nTemp: N/A\nTDP: N/A")
         if HAS_NVML and data['gpu_power'] > 0:
-            self.lbl_gpu.setText(f"GPU ({data['gpu_name']}):\n{data['gpu_power']:.1f} W")
+            gpu_tdp_str = f"{data['gpu_tdp']:.1f} W" if data['gpu_tdp'] > 0 else "N/A"
+            self.lbl_gpu.setText(f"GPU ({data['gpu_name']}):\nPower: {data['gpu_power']:.1f} W\nTemp: {data['gpu_temp']} °C\nTDP: {gpu_tdp_str}")
         else:
             self.lbl_gpu.setText(f"GPU ({data['gpu_name']}):\nN/A")
             
