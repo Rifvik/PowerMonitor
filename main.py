@@ -66,16 +66,27 @@ class TelemetryWorker(QThread):
         self.running = True
         self.has_lhm = False
         try:
+            # Change working directory so .NET Fusion can find System.Memory.dll etc.
+            orig_dir = os.path.abspath(".")
+            base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else orig_dir
+            os.chdir(base_path)
+            
             import clr
-            clr.AddReference(resource_path("LibreHardwareMonitorLib.dll"))
+            clr.AddReference(os.path.join(base_path, "LibreHardwareMonitorLib.dll"))
             from LibreHardwareMonitor.Hardware import Computer
             self.computer = Computer()
             self.computer.IsCpuEnabled = True
             self.computer.IsBatteryEnabled = True
             self.computer.Open()
             self.has_lhm = True
+            
+            os.chdir(orig_dir)
         except Exception as e:
             print("Failed to init LHM:", e)
+            try:
+                os.chdir(orig_dir)
+            except:
+                pass
 
     def run(self):
         # Initialize COM for WMI in this thread
