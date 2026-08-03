@@ -189,8 +189,6 @@ class TelemetryWorker(QThread):
                         data["bat_design"] = int(design_cap)
                     if full_cap:
                         data["bat_capacity"] = int(full_cap)
-                    if data["bat_design"] > 0 and data["bat_capacity"] > 0:
-                        data["bat_health"] = (data["bat_capacity"] / data["bat_design"]) * 100.0
                     
                     if data["bat_status"] == "Discharging" and discharge_rate > 0:
                         data["bat_charge_rate"] = float(discharge_rate) / 1000.0 # W
@@ -210,7 +208,7 @@ class TelemetryWorker(QThread):
                             for sensor in hw.Sensors:
                                 s_type = sensor.SensorType.ToString()
                                 name = sensor.Name
-                                if sensor.Value is not None:
+                                if sensor.Value is not None and sensor.Value > 0:
                                     if s_type == "Temperature" and ("Package" in name or "Core Average" in name or "Core Max" in name):
                                         data["cpu_temp"] = sensor.Value
                                     elif s_type == "Power" and "Package" in name:
@@ -220,7 +218,7 @@ class TelemetryWorker(QThread):
                             for sensor in hw.Sensors:
                                 s_type = sensor.SensorType.ToString()
                                 name = sensor.Name
-                                if sensor.Value is not None:
+                                if sensor.Value is not None and sensor.Value > 0:
                                     if s_type == "Power" and "Charge" in name:
                                         data["bat_charge_rate"] = sensor.Value
                                     elif s_type == "Power" and "Discharge" in name:
@@ -233,6 +231,10 @@ class TelemetryWorker(QThread):
                                         data["bat_percent"] = sensor.Value
                 except Exception as e:
                     print("LHM update error:", e)
+
+            # Recalculate battery health just in case LHM updated the capacities
+            if data["bat_design"] > 0 and data["bat_capacity"] > 0:
+                data["bat_health"] = (data["bat_capacity"] / data["bat_design"]) * 100.0
 
             # Total Power Estimation
             # If we have discharge rate in Watts (some systems report mW, some W), we can use it.
