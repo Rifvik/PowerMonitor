@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerMonitor</title>
+    <!-- Chart.js for the area chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f2f4f8;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #9ca3af;
+            --text-label: #6b7280;
+            --brand-orange: #f97316;
+            --brand-orange-light: rgba(249, 115, 22, 0.5);
+            --cpu-color: #8b5cf6;
+            --cpu-bg: #ede9fe;
+            --gpu-color: #06b6d4;
+            --gpu-bg: #cffafe;
+            --donut-fg: #cbd5e1;
+            --donut-bg: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* ── Navbar ──────────────────────────────────────────────────────────── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px 10px 24px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: baseline;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .logo svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--brand-orange);
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        .admin-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* ── Main Grid ───────────────────────────────────────────────────────── */
+        main {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr;
+            gap: 20px;
+            padding: 10px 24px 20px 24px;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Value Typography ────────────────────────────────────────────────── */
+        .big-value {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 24px;
+        }
+
+        .sub-value {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ── Progress Bars ───────────────────────────────────────────────────── */
+        .progress-track {
+            height: 12px;
+            border-radius: 6px;
+            width: 100%;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .cpu-track { background: var(--cpu-bg); }
+        .cpu-fill { background: var(--cpu-color); }
+        
+        .gpu-track { background: var(--gpu-bg); }
+        .gpu-fill { background: var(--gpu-color); }
+
+        /* ── Donut Chart ─────────────────────────────────────────────────────── */
+        .donut-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .donut {
+            width: 160px;
+            height: 160px;
+            transform: rotate(-90deg);
+        }
+
+        .donut circle {
+            fill: none;
+            stroke-width: 16;
+            stroke-linecap: round;
+        }
+
+        .donut-bg { stroke: var(--donut-bg); }
+        .donut-fg {
+            stroke: #e2e8f0;
+            stroke-dasharray: 402; /* 2 * pi * r (64) */
+            stroke-dashoffset: 402;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .donut-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        /* ── Chart & Cost Tracker ────────────────────────────────────────────── */
+        .chart-card {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        .chart-container {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 200px;
+        }
+
+        .live-indicator {
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .live-indicator::before {
+            content: '';
+            display: block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .cost-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .cost-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .cost-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        .cost-value {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .cost-input {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 13px;
+            font-weight: 600;
+            width: 80px;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        /* ── Footer ──────────────────────────────────────────────────────────── */
+        footer {
+            text-align: center;
+            padding: 12px 24px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+            border-top: 1px solid #e5e7eb;
+            background: var(--bg-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <div class="logo">
+                <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                PowerMonitor
+            </div>
+            <div class="subtitle">Real-Time Hardware Telemetry Dashboard</div>
+        </div>
+        <div class="admin-badge">
+            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            Administrator
+        </div>
+    </header>
+
+    <main>
+        <!-- LEFT COLUMN -->
+        <div class="col">
+            <!-- CPU Card -->
+            <div class="card">
+                <div class="card-header" id="cpu-header">CPU PERFORMANCE • Loading...</div>
+                <div class="big-value" id="cpu-power">PACKAGE POWER: -- W</div>
+                <div class="progress-track cpu-track">
+                    <div class="progress-fill cpu-fill" id="cpu-fill" style="width: 0%"></div>
+                </div>
+                <div class="sub-value" id="cpu-limit">PL2 / TDP Limit: -- W</div>
+            </div>
+
+            <!-- GPU Card -->
+            <div class="card">
+                <div class="card-header" id="gpu-header">GPU PERFORMANCE • Loading...</div>
+                <div class="big-value" id="gpu-power">POWER USAGE: -- W</div>
+                <div class="progress-track gpu-track">
+                    <div class="progress-fill gpu-fill" id="gpu-fill" style="width: 0%"></div>
+                </div>
+                <div class="sub-value" id="gpu-limit">Board Power Limit: -- W</div>
+            </div>
+
+            <!-- Donut Card -->
+            <div class="card" style="flex-grow: 1;">
+                <div class="card-header">COMBINED TDP</div>
+                <div class="donut-container">
+                    <svg class="donut" viewBox="0 0 160 160">
+                        <circle class="donut-bg" cx="80" cy="80" r="64"></circle>
+                        <circle class="donut-fg" id="donut-fg" cx="80" cy="80" r="64"></circle>
+                    </svg>
+                    <div class="donut-text" id="donut-text">0.0%</div>
+                </div>
+                <div class="sub-value" style="text-align: center; margin-top: 16px;" id="combined-sub">Combined: 0.0 W / Max TDP: 160 W</div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="col">
+            <!-- Chart Card -->
+            <div class="card chart-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div class="card-header" style="margin: 0;">REAL-TIME POWER</div>
+                    <div class="live-indicator">LIVE</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="powerChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Cost Tracker -->
+            <div class="card">
+                <div class="card-header" style="color: var(--brand-orange); gap: 4px;">
+                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    ELECTRICITY COST TRACKER
+                </div>
+                
+                <div class="cost-row">
+                    <div class="cost-label">Rate ($/kWh):</div>
+                    <input type="number" id="rate-input" class="cost-input" value="0.3485" step="0.0001">
+                </div>
+                <div class="cost-row">
+                    <div class="cost-label">CURRENT COST ($/hr)</div>
+                    <div class="cost-value" id="cost-current">$ 0.0000</div>
+                </div>
+                <div class="cost-row">
+                    <div class="cost-label">DAILY ESTIMATED ($/day)</div>
+                    <div class="cost-value" id="cost-daily">$ 0.0000</div>
+                </div>
+                <div class="cost-row">
+                    <div class="cost-label">SESSION ENERGY (kWh)</div>
+                    <div class="cost-value" id="cost-energy">--</div>
+                </div>
+                <div class="cost-row">
+                    <div class="cost-label">TOTAL SESSION COST ($)</div>
+                    <div class="cost-value" id="cost-total">--</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer-text">
+        Loading hardware telemetry...
+    </footer>
+
+    <script>
+        // State
+        let sessionStartTime = Date.now();
+        let cumulativeEnergyWh = 0;
+        let peakPower = 0;
+
+        // Chart.js Setup
+        const ctx = document.getElementById('powerChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(249, 115, 22, 0.8)');
+        gradient.addColorStop(1, 'rgba(249, 115, 22, 0.2)');
+
+        const powerChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(60).fill(''),
+                datasets: [{
+                    label: 'Watts',
+                    data: Array(60).fill(null),
+                    borderColor: 'rgba(249, 115, 22, 1)',
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    stepped: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                scales: {
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 100,
+                        grid: { color: '#f1f5f9' },
+                        border: { display: false },
+                        ticks: {
+                            color: '#9ca3af',
+                            font: { size: 11, weight: '600' }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Telemetry handler
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.addEventListener('message', event => {
+                const data = event.data;
+                updateUI(data);
+            });
+        }
+
+        // Simulating data if outside webview (for testing)
+        if (!window.chrome || !window.chrome.webview) {
+            setInterval(() => {
+                updateUI({
+                    Cpu: { Name: "Intel(R) Core(TM) Ultra 9 185H", Power: 19.4, Tag: "Utilization-Estimate" },
+                    Gpu: { Name: "NVIDIA GeForce RTX 4090 Laptop GPU", Power: 35.9, Tag: "NVML" },
+                    System: { TotalPower: 57.5, Source: "[EXACT]" }
+                });
+            }, 500);
+        }
+
+        function updateUI(data) {
+            const cPower = data.Cpu.Power || 0;
+            const gPower = data.Gpu.Power || 0;
+            const tPower = data.System.TotalPower || 0;
+            const cLimit = data.Cpu.Limit || 45;
+            const gLimit = data.Gpu.Limit || 115;
+            const tLimit = cLimit + gLimit;
+
+            if (tPower > peakPower) peakPower = tPower;
+
+            // Update Cards
+            document.getElementById('cpu-header').innerText = `CPU PERFORMANCE • ${data.Cpu.Name} via ${data.Cpu.Tag}`;
+            document.getElementById('cpu-power').innerText = `PACKAGE POWER: ${cPower.toFixed(1)} W`;
+            document.getElementById('cpu-fill').style.width = `${Math.min((cPower / cLimit) * 100, 100)}%`;
+            document.getElementById('cpu-limit').innerText = `PL2 / TDP Limit: ${cLimit.toFixed(0)} W`;
+
+            document.getElementById('gpu-header').innerText = `GPU PERFORMANCE • ${data.Gpu.Name} via ${data.Gpu.Tag}`;
+            document.getElementById('gpu-power').innerText = `POWER USAGE: ${gPower.toFixed(1)} W`;
+            document.getElementById('gpu-fill').style.width = `${Math.min((gPower / gLimit) * 100, 100)}%`;
+            document.getElementById('gpu-limit').innerText = `Board Power Limit: ${gLimit.toFixed(0)} W`;
+
+            // Donut
+            const combinedPct = Math.min((tPower / tLimit) * 100, 100);
+            document.getElementById('donut-text').innerText = `${combinedPct.toFixed(1)}%`;
+            document.getElementById('donut-fg').style.strokeDashoffset = 402 - (402 * combinedPct / 100);
+            
+            if (combinedPct > 0) {
+                document.getElementById('donut-fg').style.stroke = 'var(--text-muted)';
+            }
+
+            document.getElementById('combined-sub').innerText = `Combined: ${tPower.toFixed(1)} W / Max TDP: ${tLimit.toFixed(0)} W`;
+
+            // Chart
+            const cData = powerChart.data.datasets[0].data;
+            cData.shift();
+            cData.push(tPower);
+            powerChart.update();
+
+            // Cost Math
+            const rate = parseFloat(document.getElementById('rate-input').value) || 0;
+            const costPerHr = (tPower / 1000) * rate;
+            const costPerDay = costPerHr * 24;
+
+            // Session duration (ms)
+            const durationMs = Date.now() - sessionStartTime;
+            const durationSec = Math.floor(durationMs / 1000);
+            
+            // Add (tPower Watts * 0.5s = Watt-seconds) / 3600 = Watt-hours
+            cumulativeEnergyWh += (tPower * 0.5) / 3600; 
+            const sessionEnergyKwh = cumulativeEnergyWh / 1000;
+            const sessionCost = sessionEnergyKwh * rate;
+
+            document.getElementById('cost-current').innerText = `$ ${costPerHr.toFixed(4)}`;
+            document.getElementById('cost-daily').innerText = `$ ${costPerDay.toFixed(4)}`;
+            document.getElementById('cost-energy').innerText = sessionEnergyKwh.toFixed(6);
+            document.getElementById('cost-total').innerText = `$ ${sessionCost.toFixed(6)}`;
+
+            // Footer
+            const h = String(Math.floor(durationSec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((durationSec % 3600) / 60)).padStart(2, '0');
+            const s = String(durationSec % 60).padStart(2, '0');
+
+            document.getElementById('footer-text').innerText = 
+                `CPU: ${data.Cpu.Name} • GPU: ${data.Gpu.Name} • Combined Max TDP: ${tLimit.toFixed(0)} W • Peak: ${peakPower.toFixed(1)} W • Session: ${h}:${m}:${s} • Engine: ${data.Cpu.Tag} / ${data.Gpu.Tag}`;
+        }
+    </script>
+</body>
+</html>
