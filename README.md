@@ -1,5 +1,7 @@
 # PowerMonitor
 
+![PowerMonitor Dashboard](assets/screenshot.png)
+
 **PowerMonitor** is a modern, standalone Windows hardware telemetry dashboard built with C# and WebView2. It provides exact, real-time tracking for CPU and GPU power usage, dynamically reads your hardware's maximum TDP limits, and includes a live electricity cost tracker.
 
 ## Features
