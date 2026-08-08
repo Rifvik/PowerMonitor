@@ -7,20 +7,70 @@
     <!-- Chart.js for the area chart -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --bg-color: #f2f4f8;
-            --card-bg: #ffffff;
-            --text-main: #1f2937;
-            --text-muted: #9ca3af;
-            --text-label: #6b7280;
-            --brand-orange: #f97316;
-            --brand-orange-light: rgba(249, 115, 22, 0.5);
-            --cpu-color: #8b5cf6;
-            --cpu-bg: #ede9fe;
-            --gpu-color: #06b6d4;
-            --gpu-bg: #cffafe;
-            --donut-fg: #cbd5e1;
-            --donut-bg: #f1f5f9;
+        /* ── Themes ──────────────────────────────────────────────────────────── */
+        /* Ocean Depths (Deep Teal) */
+        .theme-ocean-depths {
+          --bg-primary: #061C26;
+          --surface-card: #0A2430;
+          --border-card: #133545;
+          --text-primary: #DCEAF1;
+          --text-secondary: #7A9CAD;
+          --accent-cpu: #00E5FF;
+          --accent-gpu: #26FF9F;
+          --accent-icon: #FA7D4B;
+          --status-live: #26FF9F;
+        }
+
+        /* Amethyst Glow (Purple/Gold) */
+        .theme-amethyst-glow {
+          --bg-primary: #2A0A3A;
+          --surface-card: #1A0625;
+          --border-card: #3A124F;
+          --text-primary: #FFFFFF;
+          --text-secondary: #BA9BC9;
+          --accent-cpu: #FFB300;
+          --accent-gpu: #4527A0;
+          --accent-icon: #FFD54F;
+          --status-live: #FFB300;
+        }
+
+        /* Volcanic Rift (Crimson/Slate) */
+        .theme-volcanic-rift {
+          --bg-primary: #252932;
+          --surface-card: #1A1D23;
+          --border-card: #323742;
+          --text-primary: #F5F5F5;
+          --text-secondary: #8C939F;
+          --accent-cpu: #FF3B3F;
+          --accent-gpu: #C62828;
+          --accent-icon: #E53935;
+          --status-live: #FF3B3F;
+        }
+
+        /* Oasis Calm (Sand/Mint) */
+        .theme-oasis-calm {
+          --bg-primary: #F7F2E6;
+          --surface-card: #FFFFFF;
+          --border-card: #E8E2D5;
+          --text-primary: #101820;
+          --text-secondary: #7C8085;
+          --accent-cpu: #00BFA5;
+          --accent-gpu: #80CBC4;
+          --accent-icon: #FA7D4B;
+          --status-live: #00BFA5;
+        }
+
+        /* OLED Pure Black */
+        .theme-oled-black {
+          --bg-primary: #000000;
+          --surface-card: #121212;
+          --border-card: #222222;
+          --text-primary: #E0E0E0;
+          --text-secondary: #757575;
+          --accent-cpu: #BDBDBD;
+          --accent-gpu: #616161;
+          --accent-icon: #FFAB00;
+          --status-live: #00E676;
         }
 
         * {
@@ -28,11 +78,12 @@
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
@@ -66,13 +117,19 @@
         .logo svg {
             width: 24px;
             height: 24px;
-            fill: var(--brand-orange);
+            fill: var(--accent-icon);
         }
 
         .subtitle {
             font-size: 14px;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             font-weight: 500;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
 
         .admin-badge {
@@ -81,13 +138,23 @@
             gap: 6px;
             font-size: 13px;
             font-weight: 700;
-            color: #10b981;
+            color: var(--status-live);
         }
 
         .admin-badge svg {
             width: 14px;
             height: 14px;
             fill: currentColor;
+        }
+
+        .settings-btn {
+            background: none; border: none; color: var(--text-secondary); cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            padding: 8px; border-radius: 50%;
+            transition: background 0.2s, color 0.2s;
+        }
+        .settings-btn:hover {
+            background: var(--border-card); color: var(--text-primary);
         }
 
         /* ── Main Grid ───────────────────────────────────────────────────────── */
@@ -114,7 +181,8 @@
         }
 
         .card {
-            background: var(--card-bg);
+            background: var(--surface-card);
+            border: 1px solid var(--border-card);
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
@@ -125,7 +193,7 @@
         .card-header {
             font-size: 11px;
             font-weight: 700;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             letter-spacing: 0.5px;
             text-transform: uppercase;
             margin-bottom: 16px;
@@ -144,7 +212,7 @@
 
         .sub-value {
             font-size: 12px;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             font-weight: 500;
         }
 
@@ -155,19 +223,18 @@
             width: 100%;
             overflow: hidden;
             margin-bottom: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-card);
         }
 
         .progress-fill {
             height: 100%;
             border-radius: 6px;
-            transition: width 0.3s ease;
+            transition: width 0.3s ease, background-color 0.3s ease;
         }
-
-        .cpu-track { background: var(--cpu-bg); }
-        .cpu-fill { background: var(--cpu-color); }
         
-        .gpu-track { background: var(--gpu-bg); }
-        .gpu-fill { background: var(--gpu-color); }
+        .cpu-fill { background: var(--accent-cpu); }
+        .gpu-fill { background: var(--accent-gpu); }
 
         /* ── Donut Chart ─────────────────────────────────────────────────────── */
         .donut-container {
@@ -191,12 +258,12 @@
             stroke-linecap: round;
         }
 
-        .donut-bg { stroke: var(--donut-bg); }
+        .donut-bg { stroke: var(--bg-primary); }
         .donut-fg {
-            stroke: #e2e8f0;
-            stroke-dasharray: 402; /* 2 * pi * r (64) */
+            stroke: var(--accent-icon);
+            stroke-dasharray: 402;
             stroke-dashoffset: 402;
-            transition: stroke-dashoffset 0.3s ease;
+            transition: stroke-dashoffset 0.3s ease, stroke 0.3s ease;
         }
 
         .donut-text {
@@ -224,7 +291,7 @@
         }
 
         .live-indicator {
-            color: #10b981;
+            color: var(--status-live);
             display: flex;
             align-items: center;
             gap: 4px;
@@ -238,7 +305,7 @@
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: #10b981;
+            background: var(--status-live);
         }
 
         .cost-row {
@@ -246,7 +313,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid var(--border-card);
         }
         .cost-row:last-child {
             border-bottom: none;
@@ -256,7 +323,7 @@
         .cost-label {
             font-size: 12px;
             font-weight: 700;
-            color: var(--text-muted);
+            color: var(--text-secondary);
         }
 
         .cost-value {
@@ -265,15 +332,19 @@
         }
 
         .cost-input {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-card);
             border-radius: 6px;
             padding: 4px 8px;
             font-size: 13px;
             font-weight: 600;
             width: 80px;
-            color: var(--text-main);
+            color: var(--text-primary);
             outline: none;
+            transition: border-color 0.2s;
+        }
+        .cost-input:focus {
+            border-color: var(--accent-icon);
         }
 
         /* ── Footer ──────────────────────────────────────────────────────────── */
@@ -281,14 +352,88 @@
             text-align: center;
             padding: 12px 24px;
             font-size: 11px;
-            color: var(--text-muted);
+            color: var(--text-secondary);
             font-weight: 500;
-            border-top: 1px solid #e5e7eb;
-            background: var(--bg-color);
+            border-top: 1px solid var(--border-card);
+            background: var(--bg-primary);
         }
+
+        /* ── Settings Modal ──────────────────────────────────────────────────── */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100;
+            opacity: 1; transition: opacity 0.2s;
+        }
+        .modal-overlay.hidden {
+            opacity: 0; pointer-events: none;
+        }
+        .modal-card {
+            background: var(--surface-card);
+            border: 1px solid var(--border-card);
+            border-radius: 12px;
+            width: 450px; max-width: 90vw;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column;
+            transform: translateY(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.hidden .modal-card {
+            transform: translateY(20px);
+        }
+        .modal-header {
+            padding: 20px; border-bottom: 1px solid var(--border-card);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .modal-header h2 { font-size: 18px; font-weight: 700; }
+        .btn-close {
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 20px; cursor: pointer; transition: color 0.2s;
+        }
+        .btn-close:hover { color: var(--accent-icon); }
+        .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+        .modal-footer {
+            padding: 16px 24px; border-top: 1px solid var(--border-card);
+            display: flex; justify-content: flex-end; background: rgba(0,0,0,0.1);
+            border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+        }
+        .btn-primary {
+            background: var(--accent-icon); color: #000; font-weight: 700;
+            border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer;
+            transition: opacity 0.2s, filter 0.2s;
+        }
+        .btn-primary:hover { filter: brightness(1.2); }
+        .settings-group { display: flex; flex-direction: column; gap: 12px; }
+        .settings-group label.group-label { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+        .settings-group select {
+            background: var(--bg-primary); color: var(--text-primary);
+            border: 1px solid var(--border-card); padding: 12px; border-radius: 8px;
+            outline: none; font-size: 14px; font-weight: 500; cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .settings-group select:focus { border-color: var(--accent-icon); }
+        .helper-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* Toggle Switch */
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; }
+        .toggle-label { font-size: 14px; font-weight: 700; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border-card); transition: .4s; border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px;
+            left: 3px; bottom: 3px; background-color: var(--text-primary);
+            transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-icon); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: #000;}
+        input:focus-visible + .slider { outline: 2px solid var(--accent-icon); outline-offset: 2px; }
     </style>
 </head>
-<body>
+<body class="theme-ocean-depths">
 
     <header>
         <div class="header-left">
@@ -298,9 +443,16 @@
             </div>
             <div class="subtitle">Real-Time Hardware Telemetry Dashboard</div>
         </div>
-        <div class="admin-badge">
-            <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
-            Administrator
+        <div class="header-right">
+            <div class="admin-badge">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                Administrator
+            </div>
+            <button id="settings-btn" class="settings-btn" aria-label="Settings">
+                <svg viewBox="0 0 24 24" style="width:20px; height:20px; fill:currentColor;">
+                    <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+                </svg>
+            </button>
         </div>
     </header>
 
@@ -337,7 +489,7 @@
                     </svg>
                     <div class="donut-text" id="donut-text">0.0%</div>
                 </div>
-                <div class="sub-value" style="text-align: center; margin-top: 16px;" id="combined-sub">Combined: 0.0 W / Max TDP: 160 W</div>
+                <div class="sub-value" style="text-align: center; margin-top: 16px;" id="combined-sub">Combined: 0.0 W / Max TDP: -- W</div>
             </div>
         </div>
 
@@ -356,7 +508,7 @@
 
             <!-- Cost Tracker -->
             <div class="card">
-                <div class="card-header" style="color: var(--brand-orange); gap: 4px;">
+                <div class="card-header" style="color: var(--accent-icon); gap: 4px;">
                     <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                     ELECTRICITY COST TRACKER
                 </div>
@@ -389,7 +541,97 @@
         Loading hardware telemetry...
     </footer>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="close-modal-btn" class="btn-close" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- Theme -->
+                <div class="settings-group">
+                    <label for="theme-select" class="group-label">Application Theme</label>
+                    <select id="theme-select">
+                        <option value="theme-ocean-depths">Ocean Depths (Teal/Dark)</option>
+                        <option value="theme-amethyst-glow">Amethyst Glow (Purple/Gold)</option>
+                        <option value="theme-volcanic-rift">Volcanic Rift (Crimson/Slate)</option>
+                        <option value="theme-oasis-calm">Oasis Calm (Sand/Light)</option>
+                        <option value="theme-oled-black">OLED Pure Black (True Black)</option>
+                    </select>
+                </div>
+                
+                <!-- Toggle -->
+                <div class="settings-group">
+                    <div class="toggle-row">
+                        <label for="tray-toggle" class="toggle-label">Minimize to Tray on Close</label>
+                        <label class="switch">
+                          <input type="checkbox" id="tray-toggle">
+                          <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <p class="helper-text">When enabled, clicking the window close button (X) will minimize the app to the system tray instead of exiting.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-settings-btn" class="btn-primary">Apply & Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Settings State
+        const settingsState = {
+            minimizeToTray: false,
+            theme: 'theme-ocean-depths'
+        };
+
+        // DOM Elements
+        const modal = document.getElementById('settings-modal');
+        const btnSettings = document.getElementById('settings-btn');
+        const btnClose = document.getElementById('close-modal-btn');
+        const btnSave = document.getElementById('save-settings-btn');
+        const themeSelect = document.getElementById('theme-select');
+        const trayToggle = document.getElementById('tray-toggle');
+
+        // Modal Logic
+        function openModal() {
+            themeSelect.value = settingsState.theme;
+            trayToggle.checked = settingsState.minimizeToTray;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        btnSettings.addEventListener('click', openModal);
+        btnClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        // Theme switching handler
+        themeSelect.addEventListener('change', (e) => {
+            document.body.className = e.target.value;
+            // Delay chart redraw slightly so CSS vars apply
+            setTimeout(updateChartTheme, 50);
+        });
+
+        btnSave.addEventListener('click', () => {
+            settingsState.theme = themeSelect.value;
+            settingsState.minimizeToTray = trayToggle.checked;
+            closeModal();
+            
+            // Optionally, push settings state back to C# backend
+            if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage({
+                    type: 'SETTINGS_UPDATE',
+                    payload: settingsState
+                });
+            }
+        });
+
         // State
         let sessionStartTime = Date.now();
         let cumulativeEnergyWh = 0;
@@ -397,55 +639,72 @@
 
         // Chart.js Setup
         const ctx = document.getElementById('powerChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(249, 115, 22, 0.8)');
-        gradient.addColorStop(1, 'rgba(249, 115, 22, 0.2)');
+        let powerChart;
 
-        const powerChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: Array(60).fill(''),
-                datasets: [{
-                    label: 'Watts',
-                    data: Array(60).fill(null),
-                    borderColor: 'rgba(249, 115, 22, 1)',
-                    backgroundColor: gradient,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.1,
-                    pointRadius: 0,
-                    stepped: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 0 },
-                plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                scales: {
-                    x: {
-                        grid: { display: false, drawBorder: false },
-                        ticks: { display: false }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        suggestedMax: 100,
-                        grid: { color: '#f1f5f9' },
-                        border: { display: false },
-                        ticks: {
-                            color: '#9ca3af',
-                            font: { size: 11, weight: '600' }
+        function initChart() {
+            powerChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(60).fill(''),
+                    datasets: [{
+                        label: 'Watts',
+                        data: Array(60).fill(null),
+                        borderColor: '#FA7D4B', // default
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        stepped: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 0 },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { display: false }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            suggestedMax: 100,
+                            grid: { color: 'rgba(128,128,128,0.1)' },
+                            border: { display: false },
+                            ticks: {
+                                color: 'var(--text-secondary)',
+                                font: { size: 11, weight: '600' }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+            updateChartTheme();
+        }
+
+        function updateChartTheme() {
+            if (!powerChart) return;
+            const rootStyles = getComputedStyle(document.body);
+            const accentColor = rootStyles.getPropertyValue('--accent-icon').trim() || '#FA7D4B';
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, accentColor + 'CC');
+            gradient.addColorStop(1, accentColor + '11');
+
+            powerChart.data.datasets[0].borderColor = accentColor;
+            powerChart.data.datasets[0].backgroundColor = gradient;
+            powerChart.update();
+        }
+
+        initChart();
 
         // Telemetry handler
         if (window.chrome && window.chrome.webview) {
             window.chrome.webview.addEventListener('message', event => {
-                const data = event.data;
-                updateUI(data);
+                if (event.data.type !== 'SETTINGS_UPDATE') {
+                    updateUI(event.data);
+                }
             });
         }
 
@@ -485,10 +744,6 @@
             const combinedPct = Math.min((tPower / tLimit) * 100, 100);
             document.getElementById('donut-text').innerText = `${combinedPct.toFixed(1)}%`;
             document.getElementById('donut-fg').style.strokeDashoffset = 402 - (402 * combinedPct / 100);
-            
-            if (combinedPct > 0) {
-                document.getElementById('donut-fg').style.stroke = 'var(--text-muted)';
-            }
 
             document.getElementById('combined-sub').innerText = `Combined: ${tPower.toFixed(1)} W / Max TDP: ${tLimit.toFixed(0)} W`;
 
@@ -507,7 +762,6 @@
             const durationMs = Date.now() - sessionStartTime;
             const durationSec = Math.floor(durationMs / 1000);
             
-            // Add (tPower Watts * 0.5s = Watt-seconds) / 3600 = Watt-hours
             cumulativeEnergyWh += (tPower * 0.5) / 3600; 
             const sessionEnergyKwh = cumulativeEnergyWh / 1000;
             const sessionCost = sessionEnergyKwh * rate;
